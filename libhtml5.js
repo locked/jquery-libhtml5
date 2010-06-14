@@ -17,15 +17,6 @@
  *  Boston, MA 02110-1301, USA.
  */
 
-// Images arrays
-var all_imgs = [];
-var imagesLoaded = 0;
-var imagesToPreload = 0;
-// Sounds array
-var audios = [];
-var loadedAudioElements = 0;
-var toloadAudioElements = 0;
-
 // For FPS
 var fps = 0;
 var lasttime = 0;
@@ -123,6 +114,16 @@ var LSGame = $.inherit({
 	this.cursor = new Cursor();
 	this.mouse = new Point();
 	
+	// Images arrays
+	this.all_imgs = [];
+	this.imagesLoaded = 0;
+	this.imagesToPreload = 0;
+	
+	// Sounds array
+	this.audios = [];
+	this.loadedAudioElements = 0;
+	this.toloadAudioElements = 0;
+
 	$('#hs_canvas').mousemove(function(e) {
 		game.mouse.x = e.pageX - $(this).parent().get(0).offsetLeft;
 		game.mouse.y = e.pageY - $(this).parent().get(0).offsetTop;
@@ -141,7 +142,7 @@ var LSGame = $.inherit({
 	return true;
   },
   addObj : function( obj ) {
-	obj.img = preloadImage( obj.img_name );
+	obj.img = this.preloadImage( obj.img_name );
 	obj.obj_id = this.objs.length;
 	this.objs.push( obj );
 	//if( this.objs[obj.obj_id] )
@@ -151,8 +152,8 @@ var LSGame = $.inherit({
   },
   init : function() {
 	// Start loading
-	loadImages();
-	loadSounds();
+	this.loadImages();
+	this.loadSounds();
   },
   start : function() {
 	// Start loop, at around 24 FPS
@@ -217,8 +218,75 @@ var LSGame = $.inherit({
 	ctx.fillText( fps+" fps", 10, 360 );
 	
 	ctx.restore();
-  }
+  },
+loadImages : function() {
+	//alert( imagesLoaded+" >= "+imagesToPreload );
+        for( var i in this.all_imgs ) {
+                this.load_image( this.all_imgs[i][1], this.all_imgs[i][0] );
+        }
+},
+load_image : function(img,uri) {
+        //var img = new Image();
+        img.onload = on_image_load_event;
+        img.onerror = on_image_load_event;
+        img.onabort = on_image_load_event;
+        img.src = media_path+"/img/"+uri;
+        return img;
+},
+preloadImage : function(uri) {
+        var i=0;
+        for( i in this.all_imgs ) {
+                if( this.all_imgs[i][0]==uri )
+                        break;
+        }
+        if( this.all_imgs[i] && this.all_imgs[i][0]==uri ) {
+                var img = this.all_imgs[i][1];
+                //game.debug( "LOAD IMG [CACHED]: "+uri );
+        } else {
+                this.imagesToPreload++;
+                //game.debug( "LOAD IMG: "+uri );
+                var img = new Image();
+                this.all_imgs.push( [uri,img] );
+        }
+        return img;
+},
+loadSounds : function() {
+	this.toloadAudioElements = this.audios.length-1;
+	for( var ii in this.audios ) {
+		var audioElement = this.audios[ii][1];
+		audioElement.addEventListener("error", function() {
+			//alert( "error"+this.src );
+		}, true);
+		audioElement.addEventListener("load", function() {
+			game.loadedAudioElements++;
+		}, true);
+		var src = media_path + "/snd/" + this.audios[ii][0];
+		src = src.replace( "#", "%23" );
+		audioElement.src = src;
+		audioElement.load();
+	}
+},
+playSound : function( audioname ) {
+},
+preloadSound : function( audioname ) {
+	var ii;
+	for( ii in this.audios )
+		if( this.audios[ii][0]==audioname )
+			break;
+	if( this.audios[ii] && this.audios[ii][0]==audioname ) {
+		var audioElement = this.audios[ii][1];
+		//debug( "LOAD SOUND [CACHED]: "+src );
+	} else {
+		var audioElement = new Audio();
+		//debug( "LOAD SOUND: "+src );
+		this.audios.push( [audioname,audioElement] );
+		//this.audios_index[
+	}
+	return audioElement;
+}
 });
+
+
 
 // Static methods
 // TODO: find a clean way to do that
@@ -227,81 +295,11 @@ drawAll = function() {
 }
 
 
-function loadImages() {
-	//alert( imagesLoaded+" >= "+imagesToPreload );
-        for( var i in all_imgs ) {
-                load_image( all_imgs[i][1], all_imgs[i][0] );
-        }
-}
-
-function load_image(img,uri) {
-        //var img = new Image();
-        img.onload = on_image_load_event;
-        img.onerror = on_image_load_event;
-        img.onabort = on_image_load_event;
-        img.src = media_path+"/img/"+uri;
-        return img;
-}
-
-
-
-function preloadImage(uri) {
-        var i=0;
-        for( i in all_imgs ) {
-                if( all_imgs[i][0]==uri )
-                        break;
-        }
-        if( all_imgs[i] && all_imgs[i][0]==uri ) {
-                var img = all_imgs[i][1];
-                //game.debug( "LOAD IMG [CACHED]: "+uri );
-        } else {
-                imagesToPreload++;
-                //game.debug( "LOAD IMG: "+uri );
-                var img = new Image();
-                all_imgs.push( [uri,img] );
-        }
-        return img;
-}
-
 function on_image_load_event() {
-        imagesLoaded++;
-        if (imagesLoaded >= imagesToPreload) {
-                //startGame();
+        game.imagesLoaded++;
+        if (game.imagesLoaded >= game.imagesToPreload) {
                 game.start();
         }
-}
-
-
-function loadSounds() {
-	toloadAudioElements = audios.length-1;
-	for( var ii in audios ) {
-		var audioElement = audios[ii][1];
-		audioElement.addEventListener("error", function() {
-			//alert( "error"+this.src );
-		}, true);
-		audioElement.addEventListener("load", function() {
-			loadedAudioElements++;
-		}, true);
-		audioElement.src = audios[ii][0];
-		audioElement.load();
-	}
-}
-
-function preloadSound( audioname ) {
-	var src = media_path+"/snd/" + audioname;
-	src = src.replace( "#", "%23" );
-	for( var ii in audios )
-		if( audios[ii][0]==src )
-			break;
-	if( audios[ii] && audios[ii][0]==src ) {
-		var audioElement = audios[ii][1];
-		//debug( "LOAD SOUND [CACHED]: "+src );
-	} else {
-		var audioElement = new Audio();
-		//debug( "LOAD SOUND: "+src );
-		audios.push( [src,audioElement] );
-	}
-	return audioElement;
 }
 
 
